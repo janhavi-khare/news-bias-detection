@@ -218,3 +218,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Large Model Artifacts and Checkpoint Binaries
+*.safetensors
+*.bin
+*.pt
+*.pth
+newsbias_roberta_best/*.safetensors
+newsbias_roberta_best/*.bin
+
+# Frontend dependencies and builds
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment configuration
+.env
+.env.local
+.env.*.local
