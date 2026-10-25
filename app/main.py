@@ -119,7 +119,12 @@ async def predict_bias(
     explainer: NewsBiasExplainer = Depends(get_explainer),
 ):
     try:
-        result = classifier.predict(request.text)
+        result = classifier.predict(
+            text=request.text,
+            include_explanation=request.include_explanation,
+            explainer=explainer if request.include_explanation else None
+        )
+        return PredictResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -128,31 +133,6 @@ async def predict_bias(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Inference error: {str(e)}"
         )
-
-    explanation_data = None
-    if request.include_explanation:
-        try:
-            explanation_data = explainer.explain(request.text)
-        except Exception as e:
-            logger.warning(f"Failed to generate explanation during predict: {e}")
-            explanation_data = {
-                "success": False,
-                "error": str(e),
-                "top_words": [],
-                "token_highlights": [],
-                "disclaimer": "Failed to calculate feature attributions."
-            }
-
-    return PredictResponse(
-        text=result["text"],
-        predicted_label=result["predicted_label"],
-        predicted_id=result["predicted_id"],
-        confidence=result["confidence"],
-        probabilities=result["probabilities"],
-        biased_probability=result["biased_probability"],
-        non_biased_probability=result["non_biased_probability"],
-        explanation=explanation_data
-    )
 
 
 @app.post("/explain", response_model=ExplainResponse, summary="Generate SHAP Explanation for Text")
@@ -164,7 +144,8 @@ async def explain_text(
         result = explainer.explain(
             text=request.text,
             top_n=request.top_n,
-            max_evals=request.max_evals
+            max_evals=request.max_evals,
+            sentence_index=request.sentence_index
         )
         return ExplainResponse(**result)
     except ValueError as e:

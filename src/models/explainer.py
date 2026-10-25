@@ -9,6 +9,7 @@ import torch
 
 from src.models.inference import NewsBiasClassifier
 from src.utils.config import SHAP_MAX_EVALS, SHAP_MAX_LENGTH
+from src.utils.text import split_into_sentences, normalize_whitespace
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class NewsBiasExplainer:
 
     Reuses the exact word-level aggregation and attribution logic
     established in the project's explainability notebook.
+    Targets class index 1 (Biased) consistently.
     """
 
     def __init__(
@@ -57,7 +59,7 @@ class NewsBiasExplainer:
         logger.info("SHAP Explainer initialized successfully.")
 
     def _predict_biased_probability(self, texts: Union[str, List[str]]) -> np.ndarray:
-        """Prediction wrapper for SHAP, outputting Biased class probability."""
+        """Prediction wrapper for SHAP, outputting Biased class probability (class index 1)."""
         if isinstance(texts, str):
             texts = [texts]
 
@@ -84,10 +86,17 @@ class NewsBiasExplainer:
 
         return np.array(results)
 
-    def explain(self, text: str, top_n: int = 10, max_evals: Optional[int] = None) -> Dict[str, Any]:
-        """Generate SHAP word-level explanation for a text.
+    def explain(
+        self,
+        text: str,
+        top_n: int = 10,
+        max_evals: Optional[int] = None,
+        sentence_index: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Generate SHAP word-level explanation for text or a specific sentence.
 
         Returns:
+        - target_sentence: the specific sentence text explained
         - base_value: expected biased probability baseline
         - predicted_biased_prob: model's biased probability for input
         - top_words: list of dicts with word, score, direction
@@ -97,10 +106,25 @@ class NewsBiasExplainer:
         cleaned_text = self.classifier.validate_input(text)
         self._init_explainer()
 
+        # Handle sentence targeting if multi-sentence article is provided
+        sentences = split_into_sentences(cleaned_text)
+        if not sentences:
+            sentences = [cleaned_text]
+
+        if sentence_index is not None and 1 <= sentence_index <= len(sentences):
+            target_text = sentences[sentence_index - 1]
+        elif len(sentences) > 1:
+            # Pick the sentence with highest biased probability to explain
+            preds = [self.classifier.predict_sentence(s) for s in sentences]
+            highest_idx = int(np.argmax([p["biased_probability"] for p in preds]))
+            target_text = sentences[highest_idx]
+        else:
+            target_text = sentences[0]
+
         evals = max_evals or self.max_evals
 
         try:
-            shap_values = self._explainer([cleaned_text], max_evals=evals)
+            shap_values = self._explainer([target_text], max_evals=evals)
             values_entry = shap_values[0]
 
             segments = [str(s) for s in values_entry.data]
@@ -122,6 +146,7 @@ class NewsBiasExplainer:
 
             return {
                 "success": True,
+                "target_sentence": target_text,
                 "base_value": round(base_val, 4),
                 "top_words": top_words,
                 "token_highlights": token_highlights,
@@ -136,6 +161,7 @@ class NewsBiasExplainer:
             logger.warning(f"SHAP explanation failed: {e}", exc_info=True)
             return {
                 "success": False,
+                "target_sentence": target_text,
                 "error": str(e),
                 "top_words": [],
                 "token_highlights": [],

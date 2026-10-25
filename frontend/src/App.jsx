@@ -16,16 +16,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const SAMPLE_TEXTS = [
   {
-    label: "Neutral Reporting",
+    label: "Single Neutral",
     text: "The government announced a new policy today, according to officials."
   },
   {
-    label: "Strongly Biased",
+    label: "Single Loaded",
     text: "The corrupt administration recklessly betrayed citizens with its disastrous decision."
   },
   {
-    label: "Policy Debate",
-    text: "Government policy sparks debate among citizens over the country's economic future."
+    label: "Mixed Article (Isolated Bias)",
+    text: "The committee met on Thursday to review the quarterly fiscal report. Independent analysts projected moderate economic growth across key industrial sectors. However, critics argued that the shameless administration pushed through a disastrous tax plan. Officials concluded the meeting by scheduling public hearings for next month."
+  },
+  {
+    label: "Balanced Policy Debate",
+    text: "Government policy sparks debate among citizens over the country's economic future. Proponents suggest the measures will incentivize capital investment. Opponents express concern regarding long-term national debt. The congressional committee is expected to vote on the proposal next week."
   }
 ];
 
@@ -34,6 +38,7 @@ export default function App() {
   const [includeExplanation, setIncludeExplanation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
+  const [explainingSentenceIdx, setExplainingSentenceIdx] = useState(null);
   const [result, setResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [apiHealth, setApiHealth] = useState(null);
@@ -132,6 +137,40 @@ export default function App() {
     }
   };
 
+  const handleExplainSentence = async (sentenceIdx, sentenceText) => {
+    setExplainingSentenceIdx(sentenceIdx);
+    try {
+      const response = await fetch(`${API_BASE_URL}/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: sentenceText,
+          top_n: 10
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate sentence explanation.");
+      }
+
+      const explData = await response.json();
+      setResult((prev) => {
+        if (!prev || !prev.sentences) return prev;
+        const updatedSentences = prev.sentences.map((s) =>
+          s.index === sentenceIdx ? { ...s, explanation: explData } : s
+        );
+        return {
+          ...prev,
+          sentences: updatedSentences
+        };
+      });
+    } catch (err) {
+      console.error("Sentence explanation error:", err);
+    } finally {
+      setExplainingSentenceIdx(null);
+    }
+  };
+
   const handleReset = () => {
     setResult(null);
     setInputText("");
@@ -148,8 +187,8 @@ export default function App() {
         </div>
         <h1 className="app-title">News Bias Detection</h1>
         <p className="app-subtitle">
-          Detect linguistic and framing bias in news articles using a fine-tuned RoBERTa binary
-          classifier with SHAP explainability.
+          Detect linguistic and framing bias in news articles using sentence-level RoBERTa classification
+          with article aggregation and SHAP interpretability.
         </p>
 
         {/* Backend status indicator */}
@@ -221,7 +260,7 @@ export default function App() {
             />
             <div className="textarea-footer">
               <span>{inputText.length} characters</span>
-              <span>RoBERTa tokenizer truncation limit: 512 tokens</span>
+              <span>Sentence-level RoBERTa tokenization (256 tokens per sentence)</span>
             </div>
           </div>
 
@@ -253,7 +292,7 @@ export default function App() {
               {isLoading ? (
                 <>
                   <div className="spinner" />
-                  <span>Analyzing...</span>
+                  <span>Analyzing Article...</span>
                 </>
               ) : (
                 <>
@@ -272,6 +311,8 @@ export default function App() {
         onReset={handleReset}
         isLoadingExplanation={isLoadingExplanation}
         onRequestExplanation={handleRequestExplanation}
+        onExplainSentence={handleExplainSentence}
+        explainingSentenceIdx={explainingSentenceIdx}
       />
 
       {/* Limitations note */}

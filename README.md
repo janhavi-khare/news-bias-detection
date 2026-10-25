@@ -11,9 +11,10 @@ News media framing, word choice, and tonal sentiment frequently introduce subjec
 ### Current Model Scope
 - **Classification Task**: Binary classification (**Non-biased** `[0]` vs. **Biased** `[1]`).
 - **Base Architecture**: Fine-tuned `FacebookAI/roberta-base`.
+- **Granularity & Aggregation**: The model classifies text at sentence-level granularity (matching the BABE training set). For multi-sentence articles, it evaluates each sentence independently and derives an article-level bias density summary based on a 25% threshold rule.
 - **Checkpoint**: Saved locally under `newsbias_roberta_best/`.
-- **Interpretability**: Word-level SHAP (`shap.maskers.Text`) token attributions with stopword filtering and impact direction mapping.
-- **Important Boundary**: The model predicts *Biased vs. Non-biased* framing. It does **not** classify political leaning (Left/Center/Right), estimate publisher ideology, or verify the factual accuracy/truth of statements.
+- **Interpretability**: Word-level SHAP (`shap.maskers.Text`) token attributions with stopword filtering, targeting class index 1 (Biased).
+- **Important Boundary**: The model detects *lexical and framing bias* (emotional pejoratives and loaded language). It does **not** classify political leaning (Left/Center/Right), estimate publisher ideology, reliably catch subtle unquoted editorial bias, or verify factual truth.
 
 ---
 
@@ -272,16 +273,50 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/predict" -Method Post -Body $body 
 **Response:**
 ```json
 {
-  "text": "The government announced a new policy today, according to officials.",
-  "predicted_label": "Non-biased",
-  "predicted_id": 0,
-  "confidence": 0.9939,
+  "text": "The committee met on Monday. However, corrupt officials betrayed voters with a disastrous package.",
+  "predicted_label": "Biased",
+  "predicted_id": 1,
+  "confidence": 0.5019,
   "probabilities": {
-    "Non-biased": 0.9939,
-    "Biased": 0.0061
+    "Non-biased": 0.4981,
+    "Biased": 0.5019
   },
-  "biased_probability": 0.0061,
-  "non_biased_probability": 0.9939,
+  "biased_probability": 0.5019,
+  "non_biased_probability": 0.4981,
+  "article_summary": {
+    "total_sentences": 2,
+    "biased_sentences_count": 1,
+    "non_biased_sentences_count": 1,
+    "biased_sentences_percentage": 50.0,
+    "mean_biased_probability": 0.5019,
+    "max_biased_probability": 0.9969,
+    "bias_intensity": "Moderate",
+    "aggregation_method": "Classified as Biased: 1 of 2 sentences (50.0%) show biased framing (exceeding the 25% article threshold), with mean biased probability 50.19%."
+  },
+  "sentences": [
+    {
+      "index": 1,
+      "text": "The committee met on Monday.",
+      "predicted_label": "Non-biased",
+      "predicted_id": 0,
+      "confidence": 0.9931,
+      "probabilities": { "Non-biased": 0.9931, "Biased": 0.0069 },
+      "biased_probability": 0.0069,
+      "non_biased_probability": 0.9931,
+      "explanation": null
+    },
+    {
+      "index": 2,
+      "text": "However, corrupt officials betrayed voters with a disastrous package.",
+      "predicted_label": "Biased",
+      "predicted_id": 1,
+      "confidence": 0.9969,
+      "probabilities": { "Non-biased": 0.0031, "Biased": 0.9969 },
+      "biased_probability": 0.9969,
+      "non_biased_probability": 0.0031,
+      "explanation": null
+    }
+  ],
   "explanation": null
 }
 ```

@@ -42,6 +42,7 @@ def test_predict_endpoint_valid_neutral(client):
     assert data["predicted_label"] == "Non-biased"
     assert "probabilities" in data
     assert data["probabilities"]["Non-biased"] >= 0.5
+    assert data["article_summary"]["total_sentences"] == 1
     assert data["explanation"] is None
 
 
@@ -55,6 +56,28 @@ def test_predict_endpoint_valid_biased(client):
     data = response.json()
     assert data["predicted_label"] == "Biased"
     assert data["probabilities"]["Biased"] >= 0.5
+    assert data["article_summary"]["total_sentences"] == 1
+
+
+def test_predict_endpoint_multi_sentence_article(client):
+    payload = {
+        "text": (
+            "The legislature met on Monday to discuss road repairs. "
+            "However, the corrupt officials betrayed voters with a disastrous spending package. "
+            "Public hearings are scheduled for next Tuesday."
+        ),
+        "include_explanation": False
+    }
+    response = client.post("/predict", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "article_summary" in data
+    summary = data["article_summary"]
+    assert summary["total_sentences"] == 3
+    assert summary["biased_sentences_count"] == 1
+    assert len(data["sentences"]) == 3
+    # Sentence 2 should be detected as Biased
+    assert data["sentences"][1]["predicted_label"] == "Biased"
 
 
 def test_predict_endpoint_with_explanation(client):
@@ -72,14 +95,12 @@ def test_predict_endpoint_with_explanation(client):
 
 
 def test_predict_endpoint_empty_input(client):
-    # Empty string should fail validation
     response = client.post("/predict", json={"text": ""})
     assert response.status_code in [400, 422]
 
 
 def test_predict_endpoint_whitespace_input(client):
-    # Whitespace-only string
-    response = client.post("/predict", json={"text": "   "})
+    response = client.post("/predict", json={"text": "   \n\t "})
     assert response.status_code in [400, 422]
 
 
@@ -94,6 +115,19 @@ def test_explain_endpoint(client):
     assert data["success"] is True
     assert "disclaimer" in data
     assert len(data["top_words"]) <= 5
+
+
+def test_explain_endpoint_specific_sentence(client):
+    payload = {
+        "text": "The committee met on Friday. The corrupt administration shamelessly betrayed ordinary citizens.",
+        "top_n": 5,
+        "sentence_index": 2
+    }
+    response = client.post("/explain", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert "corrupt" in data["target_sentence"].lower()
 
 
 def test_metrics_endpoint(client):
