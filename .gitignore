@@ -224,8 +224,8 @@ __marimo__/
 *.bin
 *.pt
 *.pth
-newsbias_roberta_best/*.safetensors
-newsbias_roberta_best/*.bin
+model_deberta/*.safetensors
+model_deberta/*.bin
 
 # Frontend dependencies and builds
 node_modules/

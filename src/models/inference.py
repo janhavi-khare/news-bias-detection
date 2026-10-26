@@ -52,7 +52,7 @@ class NewsBiasClassifier:
         if not self.model_path.exists():
             raise FileNotFoundError(
                 f"Model checkpoint directory not found at '{self.model_path}'. "
-                "Ensure newsbias_roberta_best is present in the project."
+                "Ensure model_deberta is present in the project."
             )
 
         config_file = self.model_path / "config.json"

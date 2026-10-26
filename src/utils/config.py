@@ -6,7 +6,7 @@ from typing import List
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Model configuration
-DEFAULT_MODEL_DIR = BASE_DIR / "newsbias_roberta_best"
+DEFAULT_MODEL_DIR = BASE_DIR / "model_deberta"
 MODEL_DIR = Path(os.getenv("MODEL_DIR", str(DEFAULT_MODEL_DIR)))
 
 # Ensure relative path resolution from base directory if not absolute

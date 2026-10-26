@@ -12,7 +12,7 @@ News media framing, word choice, and tonal sentiment frequently introduce subjec
 - **Classification Task**: Binary classification (**Non-biased** `[0]` vs. **Biased** `[1]`).
 - **Base Architecture**: Fine-tuned `FacebookAI/roberta-base`.
 - **Granularity & Aggregation**: The model classifies text at sentence-level granularity (matching the BABE training set). For multi-sentence articles, it evaluates each sentence independently and derives an article-level bias density summary based on a 25% threshold rule.
-- **Checkpoint**: Saved locally under `newsbias_roberta_best/`.
+- **Checkpoint**: Saved locally under `model_deberta/`.
 - **Interpretability**: Word-level SHAP (`shap.maskers.Text`) token attributions with stopword filtering, targeting class index 1 (Biased).
 - **Important Boundary**: The model detects *lexical and framing bias* (emotional pejoratives and loaded language). It does **not** classify political leaning (Left/Center/Right), estimate publisher ideology, reliably catch subtle unquoted editorial bias, or verify factual truth.
 
@@ -146,7 +146,7 @@ cd ..
 
 ## 5. Model Checkpoint Verification
 
-Ensure the local model checkpoint directory `newsbias_roberta_best` contains the following verified files:
+Ensure the local model checkpoint directory `model_deberta` contains the following verified files:
 - `config.json`
 - `model.safetensors`
 - `tokenizer.json`
@@ -157,7 +157,7 @@ Ensure the local model checkpoint directory `newsbias_roberta_best` contains the
 
 If your model is stored in a custom path, set the `MODEL_DIR` environment variable:
 ```powershell
-$env:MODEL_DIR = "newsbias_roberta_best"
+$env:MODEL_DIR = "model_deberta"
 ```
 
 ---
@@ -238,7 +238,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method Get | ConvertTo-Js
   "status": "ok",
   "model_loaded": true,
   "device": "cpu",
-  "model_path": "...\\newsbias_roberta_best",
+  "model_path": "...\\model_deberta",
   "id2label": {
     "0": "Non-biased",
     "1": "Biased"

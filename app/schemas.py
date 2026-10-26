@@ -6,7 +6,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., examples=["ok"])
     model_loaded: bool = Field(..., examples=[True])
     device: str = Field(..., examples=["cpu"])
-    model_path: str = Field(..., examples=["newsbias_roberta_best"])
+    model_path: str = Field(..., examples=["model_deberta"])
     id2label: Dict[str, str] = Field(default_factory=dict)
     version: str = Field(..., examples=["0.1.0"])
 
