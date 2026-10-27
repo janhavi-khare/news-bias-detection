@@ -98,14 +98,24 @@ class ExplainRequest(BaseModel):
 
 
 class ModelMetricsResponse(BaseModel):
-    test_set_size: int = 527
-    accuracy: float = 0.8197
-    macro_precision: float = 0.8196
-    macro_recall: float = 0.8176
-    macro_f1: float = 0.8184
+    model_architecture: str = "DeBERTa-v3-base"
+    dataset: str = "BABE (sentence-level news media bias detection)"
+    train_set_size: int = 2579
+    validation_set_size: int = 550
+    test_set_size: int = 508
+    accuracy: float = 0.8287
+    macro_f1: float = 0.8287
+    validation_macro_f1: float = 0.8309
+    macro_precision: float = 0.8288
+    macro_recall: float = 0.8288
     classes: Dict[str, Dict[str, float]] = {
-        "Non-biased": {"precision": 0.8213, "recall": 0.8475, "f1": 0.8342, "support": 282},
-        "Biased": {"precision": 0.8178, "recall": 0.7878, "f1": 0.8025, "support": 245}
+        "Non-biased": {"precision": 0.8210, "recall": 0.8373, "f1": 0.8291, "support": 252},
+        "Biased": {"precision": 0.8367, "recall": 0.8203, "f1": 0.8284, "support": 256}
     }
-    confusion_matrix: List[List[int]] = [[239, 43], [52, 193]]
-    notes: str = "Previously reported evaluation results on the held-out test split."
+    confusion_matrix: List[List[int]] = [[211, 41], [46, 210]]
+    notes: str = (
+        "Reported evaluation results on the BABE article-disjoint split. "
+        "The reported test set has been examined across multiple experiments during development. "
+        "These results should therefore be interpreted as exploratory rather than as a completely untouched final evaluation. "
+        "Performance on new data may differ."
+    )

@@ -134,6 +134,15 @@ def test_metrics_endpoint(client):
     response = client.get("/metrics")
     assert response.status_code == 200
     data = response.json()
-    assert data["test_set_size"] == 527
-    assert data["accuracy"] == 0.8197
-    assert data["macro_f1"] == 0.8184
+    assert data["model_architecture"] == "DeBERTa-v3-base"
+    assert data["test_set_size"] == 508
+    assert data["train_set_size"] == 2579
+    assert data["validation_set_size"] == 550
+    assert data["accuracy"] == 0.8287
+    assert data["macro_f1"] == 0.8287
+    assert data["validation_macro_f1"] == 0.8309
+    assert data["classes"]["Biased"]["precision"] == 0.8367
+    assert data["classes"]["Biased"]["recall"] == 0.8203
+    assert data["classes"]["Biased"]["f1"] == 0.8284
+    assert data["classes"]["Non-biased"]["f1"] == 0.8291
+    assert data["confusion_matrix"] == [[211, 41], [46, 210]]

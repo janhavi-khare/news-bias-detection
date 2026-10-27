@@ -1,6 +1,6 @@
 # News Bias Detection
 
-An academic AI/ML project and full-stack system for detecting bias in news text using a fine-tuned **RoBERTa binary text classifier** with **SHAP word-level explainability** and an interactive React web interface.
+An academic AI/ML project and full-stack system for detecting bias in news text using a fine-tuned **DeBERTa-v3-base binary text classifier** with **SHAP word-level explainability** and an interactive React web interface.
 
 ---
 
@@ -8,44 +8,59 @@ An academic AI/ML project and full-stack system for detecting bias in news text 
 
 News media framing, word choice, and tonal sentiment frequently introduce subjective bias into reporting. This project provides an end-to-end machine learning system to classify whether an excerpt of news text exhibits **Biased** or **Non-biased** language.
 
-### Current Model Scope
-- **Classification Task**: Binary classification (**Non-biased** `[0]` vs. **Biased** `[1]`).
-- **Base Architecture**: Fine-tuned `FacebookAI/roberta-base`.
-- **Granularity & Aggregation**: The model classifies text at sentence-level granularity (matching the BABE training set). For multi-sentence articles, it evaluates each sentence independently and derives an article-level bias density summary based on a 25% threshold rule.
-- **Checkpoint**: Saved locally under `model_deberta/`.
-- **Interpretability**: Word-level SHAP (`shap.maskers.Text`) token attributions with stopword filtering, targeting class index 1 (Biased).
-- **Important Boundary**: The model detects *lexical and framing bias* (emotional pejoratives and loaded language). It does **not** classify political leaning (Left/Center/Right), estimate publisher ideology, reliably catch subtle unquoted editorial bias, or verify factual truth.
+### Model Description
+> **DeBERTa-v3-base is a pretrained transformer encoder fine-tuned on the BABE dataset for sentence-level news media bias detection. Given an English news sentence, it predicts whether the sentence contains biased language or is non-biased. The model is evaluated using accuracy, macro-F1, class-wise F1, precision, recall, and a confusion matrix.**
+
+The model detects potentially biased language. It does not establish whether a news claim is factually true, determine the author's intentions, or prove that an entire article or news outlet is politically biased.
+
+### Current Production Model Specifications
+- **Model Architecture**: DeBERTa-v3-base (`microsoft/deberta-v3-base`, `DebertaV2ForSequenceClassification`).
+- **Fine-Tuning Dataset**: BABE (sentence-level news media bias detection).
+- **Training Approach**: Supervised binary classification (`0 = Non-biased`, `1 = Biased`).
+- **Dataset Splits (Article-Disjoint)**:
+  - **Training**: 2,579 sentences
+  - **Validation**: 550 sentences
+  - **Test**: 508 sentences
+- **Granularity & Aggregation**: The model classifies text at sentence-level granularity (matching the BABE training set). For multi-sentence articles, it evaluates each sentence independently and derives an article-level bias density summary using a 25% threshold rule.
+- **Active Checkpoint**: Saved locally under `model_deberta/`.
+- **Interpretability**: Word-level SHAP (`shap.maskers.Text`) token attributions targeting class index 1 (Biased).
+- **Important Boundaries**: The model detects *lexical and framing bias* (emotional pejoratives and loaded language). It does **not** classify political leaning (Left/Center/Right), estimate publisher ideology, reliably catch subtle unquoted editorial bias, or verify factual truth.
 
 ---
 
-## 2. Previously Reported Evaluation Results
+## 2. Authoritative Benchmark Evaluation Results
 
-The model was evaluated on a held-out test split of **527 news examples** during fine-tuning experimentation:
+The production DeBERTa-v3-base model was evaluated on the held-out article-disjoint test split (**508 sentences**) and validation split (**550 sentences**):
 
-| Metric | Score |
-| :--- | :--- |
-| **Accuracy** | **81.97%** (0.8197) |
-| **Macro Precision** | **81.96%** (0.8196) |
-| **Macro Recall** | **81.76%** (0.8176) |
-| **Macro F1-Score** | **81.84%** (0.8184) |
+| Metric | Split | Value |
+| :--- | :--- | :--- |
+| **Test Accuracy** | Test (508 sentences) | **82.87%** (0.8287) |
+| **Test Macro-F1** | Test (508 sentences) | **82.87%** (0.8287) |
+| **Validation Macro-F1** | Validation (550 sentences) | **83.09%** (0.8309) |
+| **Non-biased Class F1** | Test (252 sentences) | **82.91%** (0.8291) |
+| **Biased Class F1** | Test (256 sentences) | **82.84%** (0.8284) |
+| **Biased-Class Precision** | Test (256 sentences) | **83.67%** (0.8367) |
+| **Biased-Class Recall** | Test (256 sentences) | **82.03%** (0.8203) |
 
-### Class-Level Performance Breakdown
-| Class Label | Precision | Recall | F1-Score | Support (Samples) |
+### Class-Level Performance Breakdown (Test Split: 508 sentences)
+| Class Label | Precision | Recall | F1-Score | Support (Sentences) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Non-biased (0)** | 0.8213 | 0.8475 | 0.8342 | 282 |
-| **Biased (1)** | 0.8178 | 0.7878 | 0.8025 | 245 |
+| **Non-biased (0)** | 82.10% | 83.73% | 82.91% | 252 |
+| **Biased (1)** | 83.67% | 82.03% | 82.84% | 256 |
+| **Macro Average** | **82.88%** | **82.88%** | **82.87%** | **508** |
 
 ### Confusion Matrix
 *(Rows denote actual labels, columns denote predicted labels: `[Non-biased, Biased]`)*
 
-$$\begin{pmatrix} 239 & 43 \\ 52 & 193 \end{pmatrix}$$
+$$\begin{pmatrix} 211 & 41 \\ 46 & 210 \end{pmatrix}$$
 
-- **True Negatives (Non-biased)**: 239
-- **False Positives (Biased)**: 43
-- **False Negatives (Non-biased)**: 52
-- **True Positives (Biased)**: 193
+#### Plain-Language Outcome Breakdown:
+- **211 non-biased sentences correctly identified as non-biased** (True Negatives)
+- **41 non-biased sentences mistakenly flagged as biased** (False Positives)
+- **46 biased sentences missed by the model** (False Negatives)
+- **210 biased sentences correctly detected as biased** (True Positives)
 
-> *Note: These are previously reported evaluation results from the project's experimentation benchmark.*
+> **Evaluation Note**: *The reported test set has been examined across multiple experiments during development. These results should therefore be interpreted as exploratory rather than as a completely untouched final evaluation. Performance on new data may differ.*
 
 ---
 
@@ -72,26 +87,27 @@ news-bias-detection/
 │   │   │   ├── BiasCard.jsx            # Prediction badge & probability breakdown
 │   │   │   ├── ExplanationCard.jsx     # SHAP token attribution heatmap & word ranking
 │   │   │   ├── LimitationsNotice.jsx   # Academic scope disclaimer
-│   │   │   └── MetricsModal.jsx        # Benchmark test report modal
+│   │   │   ├── MetricsModal.jsx        # Benchmark test report modal (DeBERTa-v3-base)
+│   │   │   └── SentenceBreakdown.jsx   # Sentence-level analysis & per-sentence SHAP trigger
 │   │   ├── App.jsx             # Main dashboard application
 │   │   ├── index.css           # Modern accessible responsive styling
 │   │   └── main.jsx
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js          # Vite config with API proxy
-├── newsbias_roberta_best/      # Verified fine-tuned model checkpoint
+├── model_deberta/              # Active production fine-tuned DeBERTa-v3-base checkpoint
 │   ├── config.json             # Architecture & id2label mapping ({0: Non-biased, 1: Biased})
-│   ├── model.safetensors       # RoBERTa fine-tuned model weights (~498 MB)
+│   ├── model.safetensors       # DeBERTa fine-tuned weights (~737 MB)
 │   ├── tokenizer.json          # Fast tokenizer vocabulary & merges
-│   ├── tokenizer_config.json   # Tokenizer parameters (max_length: 512)
-│   └── training_args.bin       # PyTorch training arguments binary
+│   ├── tokenizer_config.json   # Tokenizer parameters (max_length: 256)
+│   └── training_args.bin       # PyTorch training arguments binary (/content/deberta_babe_only)
 ├── notebooks/                  # Academic experiments & research notebooks
 │   ├── babe_dataset.ipynb      # BABE dataset cleaning, training, and checkpoint export
 │   ├── baseline_comparison.ipynb# Baseline ML models (Linear SVM, Logistic Regression)
 │   ├── data_cleaning.ipynb     # Initial data processing
 │   ├── data_exploration.ipynb  # EDA and label distribution analysis
 │   ├── explainability.ipynb    # SHAP explanations, token attributions, and case studies
-│   └── roberta_experiment.ipynb# Transformer experimentation
+│   └── roberta_experiment.ipynb# Historical transformer experimentation (retained for reference)
 ├── results/                    # Baseline benchmark reports & figures
 │   └── baseline_comparison.csv
 ├── src/                        # Core reusable Python library
@@ -99,12 +115,14 @@ news-bias-detection/
 │   │   ├── explainer.py        # Reusable SHAP Text explainer & word attribution
 │   │   └── inference.py        # Reusable NewsBiasClassifier (validation, inference)
 │   └── utils/
-│       └── config.py           # Centralized configuration & environment loader
+│       ├── config.py           # Centralized configuration & environment loader
+│       └── text.py             # Sentence segmentation and whitespace normalization
 ├── tests/                      # Automated test suite
 │   ├── test_api.py             # FastAPI route integration tests (TestClient)
 │   └── test_inference.py       # Model loading, validation, and prediction tests
 ├── .env.example                # Template configuration file
 ├── .gitignore                  # Git rules protecting model weights, venv, and builds
+├── package.json                # Root package delegating to frontend scripts
 ├── requirements.txt            # Python dependencies (UTF-8)
 └── README.md                   # Complete documentation
 ```

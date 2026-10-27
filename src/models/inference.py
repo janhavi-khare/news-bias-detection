@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class NewsBiasClassifier:
-    """Reusable inference engine for the fine-tuned RoBERTa News Bias classifier.
+    """Reusable inference engine for the fine-tuned DeBERTa-v3-base News Bias classifier.
 
     Features sentence-level analysis matching the BABE training granularity,
     along with article-level aggregation and bias density scoring.
@@ -391,6 +391,6 @@ class NewsBiasClassifier:
             "architecture": (
                 self.model.config.architectures[0]
                 if self.model and hasattr(self.model.config, "architectures") and self.model.config.architectures
-                else "RobertaForSequenceClassification"
+                else "DebertaV2ForSequenceClassification"
             )
         }

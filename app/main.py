@@ -48,7 +48,7 @@ app = FastAPI(
     title="News Bias Detection API",
     description=(
         "Binary text classification API detecting bias in news text "
-        "using fine-tuned RoBERTa with word-level SHAP explainability."
+        "using fine-tuned DeBERTa-v3-base with word-level SHAP explainability."
     ),
     version=__version__,
     lifespan=lifespan,

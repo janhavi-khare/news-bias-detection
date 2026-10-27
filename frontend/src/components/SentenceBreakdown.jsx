@@ -27,7 +27,7 @@ export function SentenceBreakdown({
       </div>
 
       <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-        Each sentence was classified independently using RoBERTa (matching the BABE training granularity).
+        Each sentence was classified independently using DeBERTa-v3-base (matching the BABE training granularity).
         Sentences with loaded language are highlighted below.
       </p>
 

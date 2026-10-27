@@ -187,7 +187,7 @@ export default function App() {
         </div>
         <h1 className="app-title">News Bias Detection</h1>
         <p className="app-subtitle">
-          Detect linguistic and framing bias in news articles using sentence-level RoBERTa classification
+          Detect linguistic and framing bias in news articles using sentence-level DeBERTa-v3-base classification
           with article aggregation and SHAP interpretability.
         </p>
 
@@ -197,7 +197,7 @@ export default function App() {
             <span style={{ color: "var(--text-muted)" }}>Connecting to backend...</span>
           ) : apiHealth.online ? (
             <span style={{ color: "#34d399", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <CheckCircle size={14} /> Backend online (Model: RoBERTa on {apiHealth.device})
+              <CheckCircle size={14} /> Backend online (Model: DeBERTa-v3-base on {apiHealth.device})
             </span>
           ) : (
             <span style={{ color: "#f87171", display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -260,7 +260,7 @@ export default function App() {
             />
             <div className="textarea-footer">
               <span>{inputText.length} characters</span>
-              <span>Sentence-level RoBERTa tokenization (256 tokens per sentence)</span>
+              <span>Sentence-level DeBERTa-v3-base tokenization (256 tokens per sentence)</span>
             </div>
           </div>
 
