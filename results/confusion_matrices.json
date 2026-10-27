@@ -1,0 +1,81 @@
+{
+  "classes": ["Non-biased", "Biased"],
+  "format": "matrix[actual_row][predicted_col], where row 0 = Non-biased, row 1 = Biased",
+  "matrices": {
+    "weighted_soft_voting": {
+      "model_name": "Weighted Soft Voting",
+      "available": true,
+      "matrix": [
+        [197, 55],
+        [33, 223]
+      ],
+      "true_negatives": 197,
+      "false_positives": 55,
+      "false_negatives": 33,
+      "true_positives": 223,
+      "total": 508,
+      "outcomes": {
+        "true_negatives": "197 non-biased sentences correctly identified as non-biased",
+        "false_positives": "55 non-biased sentences mistakenly flagged as biased",
+        "false_negatives": "33 biased sentences missed by the ensemble",
+        "true_positives": "223 biased sentences correctly detected as biased"
+      }
+    },
+    "deberta": {
+      "model_name": "DeBERTa",
+      "available": true,
+      "matrix": [
+        [211, 41],
+        [46, 210]
+      ],
+      "true_negatives": 211,
+      "false_positives": 41,
+      "false_negatives": 46,
+      "true_positives": 210,
+      "total": 508,
+      "outcomes": {
+        "true_negatives": "211 non-biased sentences correctly identified as non-biased",
+        "false_positives": "41 non-biased sentences mistakenly flagged as biased",
+        "false_negatives": "46 biased sentences missed by the model",
+        "true_positives": "210 biased sentences correctly detected as biased"
+      }
+    },
+    "roberta": {
+      "model_name": "RoBERTa",
+      "available": true,
+      "matrix": [
+        [211, 41],
+        [50, 206]
+      ],
+      "true_negatives": 211,
+      "false_positives": 41,
+      "false_negatives": 50,
+      "true_positives": 206,
+      "total": 508,
+      "outcomes": {
+        "true_negatives": "211 non-biased sentences correctly identified as non-biased",
+        "false_positives": "41 non-biased sentences mistakenly flagged as biased",
+        "false_negatives": "50 biased sentences missed by the model",
+        "true_positives": "206 biased sentences correctly detected as biased"
+      }
+    },
+    "linear_svm": {
+      "model_name": "Linear SVM",
+      "available": false,
+      "matrix": null,
+      "reason": "Test confusion matrix not recorded in experiment log. Model evaluated on 508 test sentences."
+    },
+    "logistic_regression": {
+      "model_name": "Logistic Regression",
+      "available": false,
+      "matrix": null,
+      "reason": "Test confusion matrix not recorded in experiment log. Model evaluated on 508 test sentences."
+    },
+    "naive_bayes": {
+      "model_name": "Naive Bayes",
+      "available": false,
+      "matrix": null,
+      "reason": "Test confusion matrix not recorded in experiment log. Model evaluated on 508 test sentences."
+    }
+  }
+}

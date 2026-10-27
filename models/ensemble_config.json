@@ -1,0 +1,20 @@
+{
+  "weights": {
+    "Linear SVM": 1.0,
+    "Logistic Regression": 1.0,
+    "Naive Bayes": 1.0,
+    "RoBERTa": 2.0,
+    "DeBERTa": 2.0
+  },
+  "threshold": 0.4,
+  "validation_macro_f1": 0.82835553312705,
+  "validation_accuracy": 0.8290909090909091,
+  "model_order": [
+    "Linear SVM",
+    "Logistic Regression",
+    "Naive Bayes",
+    "RoBERTa",
+    "DeBERTa"
+  ],
+  "selection_metric": "validation macro-F1"
+}

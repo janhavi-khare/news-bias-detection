@@ -1,325 +1,113 @@
 import React, { useState, useEffect } from "react";
-import {
-  Newspaper,
-  Send,
-  AlertCircle,
-  BarChart2,
-  CheckCircle,
-  XCircle,
-  Sparkles
-} from "lucide-react";
-import { BiasCard } from "./components/BiasCard";
+import { Navigation } from "./components/Navigation";
+import { DashboardPage } from "./pages/DashboardPage";
+import { BiasDetectionPage } from "./pages/BiasDetectionPage";
+import { PerformancePage } from "./pages/PerformancePage";
+import { AboutPage } from "./pages/AboutPage";
 import { LimitationsNotice } from "./components/LimitationsNotice";
 import { MetricsModal } from "./components/MetricsModal";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
-
-const SAMPLE_TEXTS = [
-  {
-    label: "Single Neutral",
-    text: "The government announced a new policy today, according to officials."
-  },
-  {
-    label: "Single Loaded",
-    text: "The corrupt administration recklessly betrayed citizens with its disastrous decision."
-  },
-  {
-    label: "Mixed Article (Isolated Bias)",
-    text: "The committee met on Thursday to review the quarterly fiscal report. Independent analysts projected moderate economic growth across key industrial sectors. However, critics argued that the shameless administration pushed through a disastrous tax plan. Officials concluded the meeting by scheduling public hearings for next month."
-  },
-  {
-    label: "Balanced Policy Debate",
-    text: "Government policy sparks debate among citizens over the country's economic future. Proponents suggest the measures will incentivize capital investment. Opponents express concern regarding long-term national debt. The congressional committee is expected to vote on the proposal next week."
-  }
-];
+import { fetchHealth, fetchModelsStatus } from "./services/api";
 
 export default function App() {
-  const [inputText, setInputText] = useState("");
-  const [includeExplanation, setIncludeExplanation] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
-  const [explainingSentenceIdx, setExplainingSentenceIdx] = useState(null);
-  const [result, setResult] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [apiHealth, setApiHealth] = useState(null);
-  const [showMetrics, setShowMetrics] = useState(false);
+  const [modelsStatus, setModelsStatus] = useState(null);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
 
-  // Check backend health on initial load
   useEffect(() => {
-    async function checkHealth() {
+    async function loadSystemStatus() {
       try {
-        const res = await fetch(`${API_BASE_URL}/health`);
-        if (res.ok) {
-          const data = await res.json();
-          setApiHealth({ online: true, ...data });
-        } else {
-          setApiHealth({ online: false, error: "Health check returned non-200" });
-        }
+        const health = await fetchHealth();
+        setApiHealth({ online: true, ...health });
       } catch (err) {
-        setApiHealth({ online: false, error: "Cannot connect to backend" });
+        console.warn("Backend health check failed:", err);
+        setApiHealth({ online: false, error: err.message });
+      }
+
+      try {
+        const status = await fetchModelsStatus();
+        setModelsStatus(status);
+      } catch (err) {
+        console.warn("Failed to fetch models status:", err);
       }
     }
-    checkHealth();
+
+    loadSystemStatus();
   }, []);
 
-  const handleAnalyze = async (e) => {
-    if (e) e.preventDefault();
-    setErrorMessage("");
-
-    const trimmed = inputText.trim();
-    if (!trimmed) {
-      setErrorMessage("Please enter some news text to analyze.");
-      return;
-    }
-
-    setIsLoading(true);
-    setResult(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: trimmed,
-          include_explanation: includeExplanation
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Server returned error ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to analyze text. Ensure backend is running.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRequestExplanation = async () => {
-    if (!result) return;
-    setIsLoadingExplanation(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/explain`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: result.text,
-          top_n: 10
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate explanation from backend.");
-      }
-
-      const explData = await response.json();
-      setResult((prev) => ({
-        ...prev,
-        explanation: explData
-      }));
-    } catch (err) {
-      setResult((prev) => ({
-        ...prev,
-        explanation: {
-          success: false,
-          error: err.message,
-          top_words: [],
-          token_highlights: [],
-          disclaimer: "Explanation request failed."
-        }
-      }));
-    } finally {
-      setIsLoadingExplanation(false);
-    }
-  };
-
-  const handleExplainSentence = async (sentenceIdx, sentenceText) => {
-    setExplainingSentenceIdx(sentenceIdx);
-    try {
-      const response = await fetch(`${API_BASE_URL}/explain`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: sentenceText,
-          top_n: 10
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate sentence explanation.");
-      }
-
-      const explData = await response.json();
-      setResult((prev) => {
-        if (!prev || !prev.sentences) return prev;
-        const updatedSentences = prev.sentences.map((s) =>
-          s.index === sentenceIdx ? { ...s, explanation: explData } : s
-        );
-        return {
-          ...prev,
-          sentences: updatedSentences
-        };
-      });
-    } catch (err) {
-      console.error("Sentence explanation error:", err);
-    } finally {
-      setExplainingSentenceIdx(null);
-    }
-  };
-
-  const handleReset = () => {
-    setResult(null);
-    setInputText("");
-    setErrorMessage("");
-  };
-
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="brand-badge">
-          <Newspaper size={14} />
-          <span>Academic ML Research Demo</span>
-        </div>
-        <h1 className="app-title">News Bias Detection</h1>
-        <p className="app-subtitle">
-          Detect linguistic and framing bias in news articles using sentence-level DeBERTa-v3-base classification
-          with article aggregation and SHAP interpretability.
-        </p>
-
-        {/* Backend status indicator */}
-        <div style={{ marginTop: "1rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem" }}>
-          {apiHealth === null ? (
-            <span style={{ color: "var(--text-muted)" }}>Connecting to backend...</span>
-          ) : apiHealth.online ? (
-            <span style={{ color: "#34d399", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <CheckCircle size={14} /> Backend online (Model: DeBERTa-v3-base on {apiHealth.device})
-            </span>
-          ) : (
-            <span style={{ color: "#f87171", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <XCircle size={14} /> Backend offline ({apiHealth.error})
-            </span>
-          )}
-          <span style={{ color: "var(--text-muted)" }}>•</span>
-          <button
-            onClick={() => setShowMetrics(true)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#818cf8",
-              cursor: "pointer",
-              fontSize: "0.82rem",
-              textDecoration: "underline"
-            }}
-          >
-            View Benchmark Metrics
-          </button>
-        </div>
-      </header>
-
-      {/* Main Analysis Input Card */}
-      <div className="card">
-        <h2 className="card-title">
-          <Newspaper size={20} color="#818cf8" />
-          <span>Input News Text</span>
-        </h2>
-
-        {/* Sample text buttons */}
-        <div className="sample-buttons">
-          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", alignSelf: "center", marginRight: "0.25rem" }}>
-            Try a sample:
-          </span>
-          {SAMPLE_TEXTS.map((sample, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className="sample-btn"
-              onClick={() => {
-                setInputText(sample.text);
-                setErrorMessage("");
-              }}
-            >
-              {sample.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleAnalyze}>
-          <div className="textarea-container">
-            <textarea
-              className="news-textarea"
-              placeholder="Paste a news headline, paragraph, or article text here to analyze for bias..."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              rows={5}
-              disabled={isLoading}
-            />
-            <div className="textarea-footer">
-              <span>{inputText.length} characters</span>
-              <span>Sentence-level DeBERTa-v3-base tokenization (256 tokens per sentence)</span>
-            </div>
-          </div>
-
-          {errorMessage && (
-            <div className="alert alert-error">
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
-              <div>{errorMessage}</div>
-            </div>
-          )}
-
-          <div className="actions-row">
-            <label className="toggle-label">
-              <input
-                type="checkbox"
-                className="toggle-checkbox"
-                checked={includeExplanation}
-                onChange={(e) => setIncludeExplanation(e.target.checked)}
-                disabled={isLoading}
-              />
-              <Sparkles size={16} color="#818cf8" />
-              <span>Include SHAP Word Attributions (~3s)</span>
-            </label>
-
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={isLoading || !inputText.trim()}
-            >
-              {isLoading ? (
-                <>
-                  <div className="spinner" />
-                  <span>Analyzing Article...</span>
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  <span>Analyze Text</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Result Card */}
-      <BiasCard
-        result={result}
-        onReset={handleReset}
-        isLoadingExplanation={isLoadingExplanation}
-        onRequestExplanation={handleRequestExplanation}
-        onExplainSentence={handleExplainSentence}
-        explainingSentenceIdx={explainingSentenceIdx}
+    <div className="app-container" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Top Navigation */}
+      <Navigation
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        apiHealth={apiHealth}
+        modelsStatus={modelsStatus}
       />
 
-      {/* Limitations note */}
-      <LimitationsNotice />
+      {/* Main Content Area */}
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 1.5rem", flex: 1, width: "100%" }}>
+        {activeTab === "dashboard" && (
+          <DashboardPage
+            onNavigateToDetection={() => setActiveTab("detection")}
+            modelsStatus={modelsStatus}
+          />
+        )}
+
+        {activeTab === "detection" && (
+          <BiasDetectionPage apiHealth={apiHealth} />
+        )}
+
+        {activeTab === "performance" && (
+          <PerformancePage />
+        )}
+
+        {activeTab === "about" && (
+          <AboutPage />
+        )}
+
+        <div style={{ marginTop: "3rem", marginBottom: "2rem" }}>
+          <LimitationsNotice />
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer
+        style={{
+          borderTop: "1px solid var(--border-color)",
+          padding: "1.5rem",
+          textAlign: "center",
+          fontSize: "0.82rem",
+          color: "var(--text-muted)",
+          background: "rgba(15, 23, 42, 0.4)"
+        }}
+      >
+        <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+          <span>
+            News Bias Detection — 5 Classifiers + Weighted Soft Voting (Threshold 0.40)
+          </span>
+          <div style={{ display: "flex", gap: "1rem" }}>
+            <button
+              onClick={() => setActiveTab("about")}
+              style={{ background: "none", border: "none", color: "#818cf8", cursor: "pointer", fontSize: "0.82rem" }}
+            >
+              Methodology
+            </button>
+            <button
+              onClick={() => setShowMetricsModal(true)}
+              style={{ background: "none", border: "none", color: "#818cf8", cursor: "pointer", fontSize: "0.82rem" }}
+            >
+              Benchmark Modal
+            </button>
+          </div>
+        </div>
+      </footer>
 
       {/* Benchmark Metrics Modal */}
-      <MetricsModal isOpen={showMetrics} onClose={() => setShowMetrics(false)} />
+      <MetricsModal
+        isOpen={showMetricsModal}
+        onClose={() => setShowMetricsModal(false)}
+      />
     </div>
   );
 }

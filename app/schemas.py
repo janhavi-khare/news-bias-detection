@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
 
@@ -6,8 +6,10 @@ class HealthResponse(BaseModel):
     status: str = Field(..., examples=["ok"])
     model_loaded: bool = Field(..., examples=[True])
     device: str = Field(..., examples=["cpu"])
-    model_path: str = Field(..., examples=["model_deberta"])
-    id2label: Dict[str, str] = Field(default_factory=dict)
+    model_path: str = Field(..., examples=["models/deberta"])
+    id2label: Dict[str, str] = Field(default_factory=lambda: {"0": "Non-biased", "1": "Biased"})
+    total_models: int = Field(5, description="Total models available (Linear SVM, Logistic Regression, Naive Bayes, RoBERTa, DeBERTa)")
+    loaded_models_count: int = Field(5, description="Number of models currently loaded")
     version: str = Field(..., examples=["0.1.0"])
 
 
@@ -57,6 +59,28 @@ class ArticleSummary(BaseModel):
     aggregation_method: str = Field(..., description="Detailed description of the article-level decision rule")
 
 
+class IndividualModelPrediction(BaseModel):
+    label: str = Field(..., description="'Biased' or 'Non-biased'")
+    probability_biased: float = Field(..., description="Probability of Biased class [0, 1]")
+    probability_non_biased: Optional[float] = Field(None, description="Probability of Non-biased class [0, 1]")
+    confidence: Optional[float] = Field(None, description="Confidence score")
+    model_name: Optional[str] = Field(None, description="Human readable model name")
+    model_type: Optional[str] = Field(None, description="Architecture or algorithm family")
+    error: Optional[str] = Field(None, description="Error details if inference failed")
+
+
+class EnsemblePrediction(BaseModel):
+    label: str = Field(..., description="'Biased' or 'Non-biased'")
+    probability_biased: float = Field(..., description="Weighted ensemble biased probability")
+    probability_non_biased: float = Field(..., description="1.0 - probability_biased")
+    confidence: float = Field(..., description="Ensemble confidence score")
+    threshold: float = Field(0.40, description="Decision threshold applied (default: 0.40)")
+    weights: Dict[str, float] = Field(default_factory=dict, description="Model weights used")
+    denominator: Optional[float] = Field(None, description="Sum of active weights")
+    explanation: Optional[str] = Field(None, description="Formula representation")
+    caveat: Optional[str] = Field(None, description="Confidence caveat notice")
+
+
 class PredictRequest(BaseModel):
     text: str = Field(
         ...,
@@ -72,14 +96,26 @@ class PredictRequest(BaseModel):
 
 
 class PredictResponse(BaseModel):
-    text: str = Field(..., description="Sanitized input text analyzed")
-    predicted_label: str = Field(..., description="Article-level prediction: 'Biased' or 'Non-biased'")
+    # New ensemble & 5-model fields
+    input_text: str = Field(..., description="Sanitized input text analyzed")
+    individual_predictions: Dict[str, IndividualModelPrediction] = Field(
+        default_factory=dict,
+        description="Predictions from each of the five individual models"
+    )
+    ensemble: EnsemblePrediction = Field(
+        ...,
+        description="Final prediction from weighted soft voting ensemble"
+    )
+
+    # Backward-compatible fields
+    text: Optional[str] = Field(None, description="Sanitized input text analyzed")
+    predicted_label: str = Field(..., description="Ensemble prediction: 'Biased' or 'Non-biased'")
     predicted_id: int = Field(..., description="Class integer ID (0=Non-biased, 1=Biased)")
-    confidence: float = Field(..., description="Confidence score of the article-level prediction")
-    probabilities: Dict[str, float] = Field(..., description="Article-level class probabilities")
-    biased_probability: float = Field(..., description="Article-level probability score for Biased class")
-    non_biased_probability: float = Field(..., description="Article-level probability score for Non-biased class")
-    article_summary: Optional[ArticleSummary] = Field(None, description="Detailed sentence breakdown and aggregation metrics")
+    confidence: float = Field(..., description="Confidence score of prediction")
+    probabilities: Dict[str, float] = Field(..., description="Ensemble class probabilities")
+    biased_probability: float = Field(..., description="Ensemble probability score for Biased class")
+    non_biased_probability: float = Field(..., description="Ensemble probability score for Non-biased class")
+    article_summary: Optional[ArticleSummary] = Field(None, description="Sentence breakdown and aggregation metrics")
     sentences: List[SentencePrediction] = Field(default_factory=list, description="Independent sentence-level classifications")
     explanation: Optional[ExplainResponse] = Field(None, description="SHAP explanation for the most biased sentence if requested")
 
@@ -95,6 +131,14 @@ class ExplainRequest(BaseModel):
     top_n: int = Field(10, ge=1, le=50, description="Maximum number of top words to rank")
     max_evals: Optional[int] = Field(None, ge=10, le=200, description="Evaluation budget for SHAP")
     sentence_index: Optional[int] = Field(None, ge=1, description="Specific sentence index to explain (1-based)")
+
+
+class ModelsStatusResponse(BaseModel):
+    total_models: int = 5
+    loaded_models_count: int
+    all_loaded: bool
+    models: Dict[str, Any]
+    ensemble_config: Dict[str, Any]
 
 
 class ModelMetricsResponse(BaseModel):
@@ -119,3 +163,12 @@ class ModelMetricsResponse(BaseModel):
         "These results should therefore be interpreted as exploratory rather than as a completely untouched final evaluation. "
         "Performance on new data may differ."
     )
+    # Comparison table
+    experiment_metadata: Optional[Dict[str, Any]] = None
+    models: Optional[List[Dict[str, Any]]] = None
+
+
+class ConfusionMatricesResponse(BaseModel):
+    classes: List[str] = ["Non-biased", "Biased"]
+    format: Optional[str] = "matrix[actual_row][predicted_col]"
+    matrices: Dict[str, Any]

@@ -146,3 +146,67 @@ def test_metrics_endpoint(client):
     assert data["classes"]["Biased"]["f1"] == 0.8284
     assert data["classes"]["Non-biased"]["f1"] == 0.8291
     assert data["confusion_matrix"] == [[211, 41], [46, 210]]
+
+
+def test_models_endpoint(client):
+    response = client.get("/api/models")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_models"] == 5
+    assert data["loaded_models_count"] == 5
+    assert data["all_loaded"] is True
+    for key in ["linear_svm", "logistic_regression", "naive_bayes", "roberta", "deberta"]:
+        assert key in data["models"]
+        assert data["models"][key]["loaded"] is True
+
+
+def test_predict_endpoint_five_models_response(client):
+    payload = {
+        "text": "The corrupt administration shamelessly betrayed citizens with its disastrous decision.",
+        "include_explanation": False
+    }
+    response = client.post("/api/predict", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify 5 individual predictions exist
+    assert "individual_predictions" in data
+    ind = data["individual_predictions"]
+    for key in ["linear_svm", "logistic_regression", "naive_bayes", "roberta", "deberta"]:
+        assert key in ind
+        assert "probability_biased" in ind[key]
+        assert "label" in ind[key]
+        assert 0.0 <= ind[key]["probability_biased"] <= 1.0
+
+    # Verify ensemble output
+    assert "ensemble" in data
+    ens = data["ensemble"]
+    assert "probability_biased" in ens
+    assert "label" in ens
+    assert ens["threshold"] == 0.40
+    assert ens["label"] == "Biased"
+    assert ens["probability_biased"] >= 0.40
+
+    # Verify backward compatibility
+    assert data["predicted_label"] == "Biased"
+    assert data["probabilities"]["Biased"] == ens["probability_biased"]
+
+
+def test_confusion_matrices_endpoint(client):
+    response = client.get("/api/confusion-matrices")
+    assert response.status_code == 200
+    data = response.json()
+    assert "matrices" in data
+    assert data["matrices"]["weighted_soft_voting"]["available"] is True
+    assert data["matrices"]["weighted_soft_voting"]["matrix"] == [[197, 55], [33, 223]]
+    assert data["matrices"]["deberta"]["available"] is True
+    assert data["matrices"]["deberta"]["matrix"] == [[211, 41], [46, 210]]
+
+
+def test_download_comparison_csv(client):
+    response = client.get("/api/comparison-csv")
+    assert response.status_code == 200
+    assert "text/csv" in response.headers.get("content-type", "")
+    assert "attachment" in response.headers.get("content-disposition", "")
+    assert "Linear SVM" in response.text
+    assert "Weighted Soft Voting" in response.text

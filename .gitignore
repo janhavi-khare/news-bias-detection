@@ -226,6 +226,8 @@ __marimo__/
 *.pth
 model_deberta/*.safetensors
 model_deberta/*.bin
+models/**/*.safetensors
+models/**/*.bin
 
 # Frontend dependencies and builds
 node_modules/

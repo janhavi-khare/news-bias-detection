@@ -3,37 +3,58 @@ from typing import Optional
 
 from src.models.inference import NewsBiasClassifier
 from src.models.explainer import NewsBiasExplainer
+from app.predictor import MultiModelPredictor
+from app.metrics import MetricsManager
 
 logger = logging.getLogger(__name__)
 
-_classifier: Optional[NewsBiasClassifier] = None
-_explainer: Optional[NewsBiasExplainer] = None
+_predictor: Optional[MultiModelPredictor] = None
+_metrics_manager: Optional[MetricsManager] = None
 
 
 def init_models() -> None:
-    """Initialize and pre-load model into memory once during application startup."""
-    global _classifier, _explainer
-    if _classifier is None:
-        logger.info("Initializing global NewsBiasClassifier...")
-        _classifier = NewsBiasClassifier()
-        _classifier.load_model()
+    """Initialize and pre-load all models into memory once during application startup."""
+    global _predictor, _metrics_manager
+    if _predictor is None:
+        logger.info("Initializing MultiModelPredictor...")
+        _predictor = MultiModelPredictor()
+        _predictor.load_all_models()
 
-    if _explainer is None:
-        logger.info("Initializing global NewsBiasExplainer...")
-        _explainer = NewsBiasExplainer(classifier=_classifier)
+    if _metrics_manager is None:
+        _metrics_manager = MetricsManager()
+
+
+def get_predictor() -> MultiModelPredictor:
+    """Dependency provider for the singleton MultiModelPredictor."""
+    global _predictor
+    if _predictor is None or not _predictor.is_initialized:
+        init_models()
+    return _predictor
+
+
+def get_metrics_manager() -> MetricsManager:
+    """Dependency provider for the benchmark metrics manager."""
+    global _metrics_manager
+    if _metrics_manager is None:
+        _metrics_manager = MetricsManager()
+    return _metrics_manager
 
 
 def get_classifier() -> NewsBiasClassifier:
-    """Dependency provider for the singleton inference classifier."""
-    global _classifier
-    if _classifier is None or not _classifier.is_loaded():
-        init_models()
-    return _classifier
+    """Dependency provider for primary inference classifier (DeBERTa)."""
+    predictor = get_predictor()
+    if predictor.deberta_classifier and predictor.deberta_classifier.is_loaded():
+        return predictor.deberta_classifier
+    elif predictor.roberta_classifier and predictor.roberta_classifier.is_loaded():
+        return predictor.roberta_classifier
+    raise RuntimeError("No transformer classifier is loaded.")
 
 
 def get_explainer() -> NewsBiasExplainer:
     """Dependency provider for the singleton SHAP explainer."""
-    global _explainer
-    if _explainer is None:
-        init_models()
-    return _explainer
+    predictor = get_predictor()
+    if predictor.explainer is not None:
+        return predictor.explainer
+    classifier = get_classifier()
+    predictor.explainer = NewsBiasExplainer(classifier=classifier)
+    return predictor.explainer
